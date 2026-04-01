@@ -1,0 +1,44 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/components/ui": ["./components/ui/index.ts"],
+      "@/components/shared": ["./components/shared/index.ts"],
+      "@/components/layout": ["./components/layout/index.ts"],
+      "@/components/admin": ["./components/admin/index.ts"],
+      "@/components/pharmacy": ["./components/pharmacy/index.ts"],
+      "@/components/lab": ["./components/lab/index.ts"],
+      "@/components/receptionist": ["./components/receptionist/index.ts"],
+      "@/components/beds": ["./components/beds/index.ts"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
