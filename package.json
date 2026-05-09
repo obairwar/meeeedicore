@@ -92,5 +92,6 @@
   "bugs": {
     "url": "https://github.com/obairwar/meeeedicore/issues"
   },
-  "homepage": "https://github.com/obairwar/meeeedicore#readme"
+  "homepage": "https://github.com/obairwar/meeeedicore#readme",
+  "keywords": []
 }
