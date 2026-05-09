@@ -3,7 +3,14 @@ import type { NextRequest } from "next/server"
 
 import { prisma } from "@/lib/prisma"
 
+const QUEUE_ESTIMATE_MINUTES_PER_PATIENT = 6
+
 async function getEffectiveSlotMinutes(doctorId: string): Promise<number> {
+  // Product decision: use a fixed per-patient estimate for the live queue.
+  // (We still store schedule durations separately for appointment length.)
+  void doctorId
+  return QUEUE_ESTIMATE_MINUTES_PER_PATIENT
+
   const schedule = await prisma.doctorSchedule.findFirst({
     where: { doctorId },
     select: { slotDurationMinutes: true },
@@ -36,6 +43,10 @@ function tokenNumberFromCode(tokenCode: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
+function isSameLocalDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ appointmentId: string }> }) {
   try {
     const { appointmentId } = await context.params
@@ -56,28 +67,33 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ appoin
       return NextResponse.json({ success: false, data: null, error: "Appointment not found" }, { status: 404 })
     }
 
-    const dayStart = new Date()
+    // Compute the queue window for the *appointment day* (not "today"),
+    // otherwise future bookings always show 0 patients ahead.
+    const dayStart = new Date(appointment.startsAt)
     dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date()
+    const dayEnd = new Date(appointment.startsAt)
     dayEnd.setHours(23, 59, 59, 999)
+    const queueIsLiveToday = isSameLocalDay(new Date(appointment.startsAt), new Date())
 
     // Use actual average consult duration for this doctor (fallback to schedule)
     const slotDuration = await getEffectiveSlotMinutes(appointment.doctorId)
 
-    // Current IN_PROGRESS appointment for this doctor (today)
-    const currentlyServing = await prisma.appointment.findFirst({
-      where: {
-        doctorId: appointment.doctorId,
-        status: "IN_PROGRESS",
-        startsAt: { gte: dayStart, lte: dayEnd },
-      },
-      select: {
-        tokenCode: true,
-        startsAt: true,
-        patient: { select: { name: true } },
-        queueEntry: { select: { startedAt: true } },
-      },
-    })
+    // Only show "now serving" when it's the appointment's queue day.
+    const currentlyServing = queueIsLiveToday
+      ? await prisma.appointment.findFirst({
+          where: {
+            doctorId: appointment.doctorId,
+            status: "IN_PROGRESS",
+            startsAt: { gte: dayStart, lte: dayEnd },
+          },
+          select: {
+            tokenCode: true,
+            startsAt: true,
+            patient: { select: { name: true } },
+            queueEntry: { select: { startedAt: true } },
+          },
+        })
+      : null
 
     // Time remaining for current patient
     let timeRemainingForCurrent = currentlyServing ? slotDuration : 0
@@ -87,9 +103,44 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ appoin
       timeRemainingForCurrent = Math.max(0, slotDuration - elapsedMinutes)
     }
 
-    // Patients ahead of this patient in queue
+    // If it's not the appointment day, don't show a "live queue" position/wait.
+    if (!queueIsLiveToday) {
+      const roomNumber = `${appointment.department.floor}01`
+      return NextResponse.json({
+        success: true,
+        data: {
+          doctorId: appointment.doctorId,
+          appointmentStartsAt: appointment.startsAt.toISOString(),
+          queueIsLiveToday,
+          tokenCode: appointment.tokenCode,
+          tokenNumber: tokenNumberFromCode(appointment.tokenCode),
+          status: appointment.status,
+          position: 0,
+          estimatedWaitMinutes: 0,
+          // For future bookings, "expected at" is the scheduled appointment time.
+          estimatedAppointmentTime: appointment.startsAt.toISOString(),
+          patientsAhead: 0,
+          waitingAhead: 0,
+          timeRemainingForCurrent: 0,
+          currentlyServing: {
+            tokenCode: null,
+            patientName: null,
+            startedAt: null,
+            elapsedMinutes: 0,
+            timeRemaining: 0,
+          },
+          doctorName: appointment.doctor.user?.name ?? appointment.doctor.name,
+          department: appointment.department.name,
+          roomNumber,
+          slotDurationMinutes: slotDuration,
+        },
+        error: null,
+      })
+    }
+
+    // Patients ahead (WAITING only, excludes current IN_CONSULTATION)
     const qe = appointment.queueEntry
-    const patientsAhead = qe
+    const waitingAhead = qe
       ? await prisma.queueEntry.count({
           where: {
             doctorId: appointment.doctorId,
@@ -104,7 +155,11 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ appoin
         })
       : 0
 
-    const estimatedWaitMinutes = timeRemainingForCurrent + patientsAhead * slotDuration
+    const isYouCurrentlyServing = currentlyServing?.tokenCode === appointment.tokenCode
+    const currentAhead = currentlyServing && !isYouCurrentlyServing ? 1 : 0
+    const patientsAhead = waitingAhead + currentAhead
+
+    const estimatedWaitMinutes = timeRemainingForCurrent + waitingAhead * slotDuration
     const estimatedAppointmentTime = new Date(Date.now() + estimatedWaitMinutes * 60000)
 
     const roomNumber = `${appointment.department.floor}01`
@@ -112,6 +167,9 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ appoin
     return NextResponse.json({
       success: true,
       data: {
+        doctorId: appointment.doctorId,
+        appointmentStartsAt: appointment.startsAt.toISOString(),
+        queueIsLiveToday,
         tokenCode: appointment.tokenCode,
         tokenNumber: tokenNumberFromCode(appointment.tokenCode),
         status: appointment.status,
@@ -119,6 +177,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ appoin
         estimatedWaitMinutes,
         estimatedAppointmentTime: estimatedAppointmentTime.toISOString(),
         patientsAhead,
+        waitingAhead,
         timeRemainingForCurrent,
         currentlyServing: {
           tokenCode: currentlyServing?.tokenCode ?? null,

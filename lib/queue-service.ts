@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/prisma"
 
+const QUEUE_ESTIMATE_MINUTES_PER_PATIENT = 6
+
 export class QueueService {
   private async getEffectiveSlotMinutes(doctorId: string): Promise<number> {
+    // Product decision: use a fixed per-patient estimate for queue wait times.
+    // (Doctor schedule duration can still represent booked appointment length.)
+    void doctorId
+    return QUEUE_ESTIMATE_MINUTES_PER_PATIENT
+
     const schedule = await prisma.doctorSchedule.findFirst({
       where: { doctorId },
       select: { slotDurationMinutes: true },

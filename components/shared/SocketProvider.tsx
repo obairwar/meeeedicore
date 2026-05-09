@@ -7,7 +7,7 @@ import { useSession } from "next-auth/react"
 type SocketContextValue = {
   socket: Socket | null
   connected: boolean
-  /** True when NEXT_PUBLIC_SOCKET_URL is set (client will try to connect). */
+  /** True when socket is configured or dev fallback is used. */
   socketEnabled: boolean
 }
 
@@ -30,7 +30,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const [socket, setSocket] = useState<Socket | null>(null)
   const [connected, setConnected] = useState(false)
 
-  const url = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() ?? ""
+  const configured = process.env.NEXT_PUBLIC_SOCKET_URL?.trim() ?? ""
+  // Match server-emitter behavior: allow local dev fallback when env isn't set.
+  const url = configured.length > 0 ? configured : process.env.NODE_ENV === "production" ? "" : "http://127.0.0.1:3001"
   const socketEnabled = url.length > 0
 
   useEffect(() => {

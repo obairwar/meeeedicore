@@ -1,41 +1,96 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## MediCore HMS (Hospital Management System)
 
-## Getting Started
+MediCore is a full‑stack Hospital Management System built with **Next.js (App Router)**. It supports multi‑role workflows (Patient / Doctor / Receptionist / Lab / Pharmacy / Admin) with **appointments + token-based queueing**, **analytics & reporting**, optional **payments/notifications**, and **account security (2FA)**. It also includes an **Emergency SOS** flow to prioritize urgent patients in the queue.
 
-First, run the development server:
+## Highlights
+
+- **Multi‑role dashboards**: Patient, Doctor, Receptionist, Lab, Pharmacy, Admin
+- **Appointments & tokens**: booking + token generation
+- **Live queue**: call-next flow + patient live status (Socket.io)
+- **Triage & emergency**: emergency SOS + priority-based queue handling
+- **Analytics**: overview dashboards (appointments, departments, revenue, demographics, top doctors)
+- **Payments**: Razorpay integration (optional)
+- **Notifications**: in‑app + email/SMS/WhatsApp + web push (optional)
+- **Security**: Auth.js (NextAuth v5) + JWT sessions + TOTP 2FA + backup codes
+- **PWA + i18n**: offline page + caching + locales (e.g. `en`, `ur`, `hi`)
+
+## Tech stack
+
+- **Next.js** 16 + **React** 19
+- **Auth**: Auth.js / NextAuth (Credentials)
+- **DB/ORM**: Prisma + SQLite
+- **Validation**: Zod
+- **Realtime**: Socket.io (+ PeerJS for video features)
+- **UI**: Tailwind + component primitives
+
+## Quickstart (local)
+
+### 1) Install
+
+```bash
+npm install
+```
+
+### 2) Environment variables
+
+Create `.env.local` (this file is gitignored). Minimum required for auth:
+
+```bash
+AUTH_SECRET=your_random_secret
+DATABASE_URL="file:./dev.db"
+```
+
+You can generate a secret with:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+See `.env.example` for optional integrations (Razorpay, Twilio, Cloudinary, email, push).
+
+### 3) Database
+
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
+
+### 4) Run the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+App runs on the port shown in the terminal (often `http://localhost:7771` in dev).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5) (Optional) Run realtime server (live queue)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open a second terminal:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-
+```bash
+npm run dev:socket
 ```
-You are good to go
 
-```
+This starts Socket.io (default `http://127.0.0.1:3001`).
+
+## Demo accounts (seed)
+
+From `prisma/README.md`:
+
+- **Admin**: `admin@hospital.com` / `Admin@123`
+- **Doctor**: `doctor1@hospital.com` / `Doctor@123`
+- **Receptionist**: `reception@hospital.com` / `Recept@123`
+- **Patient**: `ahmad.mir@test.com` / `Test@1234`
+
+## Repo structure (high level)
+
+- `app/`: pages (role‑based routes) + API routes
+- `components/`: UI + feature components
+- `lib/`: shared services (auth, queue logic, notifications, prisma)
+- `prisma/`: schema, migrations, seed
+- `server/`: Socket.io + PeerJS server
+
+## Notes for deployment
+
+- Set **`AUTH_SECRET`** in production environment.
+- Configure DB (`DATABASE_URL`) and any optional providers you need (Razorpay/Twilio/Cloudinary/email/push).

@@ -95,7 +95,10 @@ export default async function middleware(request: NextRequest) {
     return intlResponse
   }
 
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+  const token = await getToken({
+    req: request,
+    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  })
   const locale = getLocaleFromPath(pathname)
 
   if (!token) {

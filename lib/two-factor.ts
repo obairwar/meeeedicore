@@ -5,8 +5,8 @@ import { generateSecret, verifySync } from "otplib"
 const TWO_FACTOR_JWT_ALG = "HS256" as const
 
 function getJwtSecret() {
-  const s = process.env.NEXTAUTH_SECRET
-  if (!s) throw new Error("NEXTAUTH_SECRET is not set")
+  const s = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (!s) throw new Error("AUTH_SECRET or NEXTAUTH_SECRET is not set")
   return new TextEncoder().encode(s)
 }
 

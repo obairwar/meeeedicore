@@ -6,11 +6,11 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 7771",
     "dev:socket": "tsx server/index.ts",
     "dev:peer": "tsx server/index.ts",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 7771",
     "lint": "eslint"
   },
   "dependencies": {
@@ -77,5 +77,20 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5"
-  }
+  },
+  "description": "MediCore is a full‑stack Hospital Management System built with **Next.js (App Router)**. It supports multi‑role workflows (Patient / Doctor / Receptionist / Lab / Pharmacy / Admin) with **appointments + token-based queueing**, **analytics & reporting**, optional **payments/notifications**, and **account security (2FA)**. It also includes an **Emergency SOS** flow to prioritize urgent patients in the queue.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/obairwar/meeeedicore.git"
+  },
+  "author": "Obair and Tawseef",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/obairwar/meeeedicore/issues"
+  },
+  "homepage": "https://github.com/obairwar/meeeedicore#readme"
 }

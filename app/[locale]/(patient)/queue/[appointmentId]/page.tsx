@@ -13,9 +13,13 @@ interface QueueStatus {
   tokenCode: string
   tokenNumber: number
   status: string
+  doctorId: string
+  appointmentStartsAt: string
+  queueIsLiveToday: boolean
   position: number
   estimatedWaitMinutes: number
   patientsAhead: number
+  waitingAhead: number
   timeRemainingForCurrent: number
   estimatedAppointmentTime: string
   currentlyServing: {
@@ -99,6 +103,11 @@ export default function PatientQueuePage() {
 
   useEffect(() => {
     if (!socket || !connected || !appointmentId) return
+
+    // Subscribe this page to the relevant rooms so it receives doctor queue updates
+    // and patient-specific events.
+    socket.emit("join", { room: appointmentId })
+
     const onUpdate = () => void fetchStatus()
     socket.on("queue:updated", onUpdate)
     socket.on("patient:your_turn", onUpdate)
@@ -109,6 +118,12 @@ export default function PatientQueuePage() {
       socket.off("patient:alert_2_ahead", onUpdate)
     }
   }, [socket, connected, appointmentId, fetchStatus])
+
+  useEffect(() => {
+    if (!socket || !connected) return
+    if (!status?.doctorId) return
+    socket.emit("join", { room: status.doctorId })
+  }, [socket, connected, status?.doctorId])
 
   // Keep the elapsed timer in sync with server state (and then count up locally)
   useEffect(() => {
@@ -152,11 +167,13 @@ export default function PatientQueuePage() {
   }
 
   if (!status) return null
+  const queueNotLive = !status.queueIsLiveToday
 
   const isYourTurn = status.status === "IN_PROGRESS"
   const isCompleted = status.status === "COMPLETED"
   const almostYourTurn = status.patientsAhead <= 2 && status.patientsAhead > 0 && !isYourTurn
   const slotM = status.slotDurationMinutes ?? 15
+  const waitingAhead = Math.max(0, status.waitingAhead ?? Math.max(0, status.patientsAhead - (status.currentlyServing.tokenCode ? 1 : 0)))
 
   const progressPercent = isYourTurn
     ? 100
@@ -202,6 +219,11 @@ export default function PatientQueuePage() {
       </header>
 
       <div className="mx-auto mt-6 max-w-sm space-y-4 px-4">
+        {queueNotLive ? (
+          <div className="rounded-2xl border border-[var(--mc-border)] bg-white p-4 text-center text-sm text-[var(--mc-muted)] shadow-sm">
+            Queue updates go live on your appointment day.
+          </div>
+        ) : null}
         {connected ? (
           <p className="text-center text-xs text-[var(--mc-muted)]">Socket connected — instant updates when available</p>
         ) : null}
@@ -292,7 +314,7 @@ export default function PatientQueuePage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--mc-muted)]">Patients ahead × {slotM} min</span>
-              <span className="font-semibold">~{status.patientsAhead * slotM} min</span>
+              <span className="font-semibold">~{waitingAhead * slotM} min</span>
             </div>
             <div className="border-t border-dashed border-[var(--mc-border)] pt-2" />
             <div className="flex justify-between font-bold">

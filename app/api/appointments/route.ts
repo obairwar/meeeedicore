@@ -56,6 +56,8 @@ function tokenNumberFromCode(tokenCode: string): number {
   return Number.isFinite(n) ? n : 0
 }
 
+const QUEUE_ESTIMATE_MINUTES_PER_PATIENT = 6
+
 export async function POST(req: Request) {
   const session = await auth()
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -177,15 +179,19 @@ export async function POST(req: Request) {
 
       if (!appt) throw new Error("TOKEN_GENERATION_FAILED")
 
-    const qe = await tx.queueEntry.create({
+      const position =
+        (await tx.queueEntry.count({
+          where: { doctorId: doctor.id, status: { in: ["WAITING", "CALLED", "IN_CONSULTATION"] } },
+        })) + 1
+
+      const qe = await tx.queueEntry.create({
       data: {
         appointmentId: appt.id,
         doctorId: doctor.id,
-        position:
-          (await tx.queueEntry.count({
-            where: { doctorId: doctor.id, status: { in: ["WAITING", "CALLED", "IN_CONSULTATION"] } },
-          })) + 1,
-        estimatedWaitMinutes: 0,
+        position,
+        // For future bookings we may not recalculate immediately (recalc only applies to "today").
+        // Still show a sane estimate on the confirmation screen.
+          estimatedWaitMinutes: Math.max(0, (position - 1) * QUEUE_ESTIMATE_MINUTES_PER_PATIENT),
       },
     })
 
@@ -199,8 +205,8 @@ export async function POST(req: Request) {
       },
     })
 
-    return { appt, qe }
-  })
+      return { appt, qe }
+    })
 
     await QueueService.recalculateEstimates(result.appt.doctorId)
     const status = await QueueService.getStatus(result.appt.id)
